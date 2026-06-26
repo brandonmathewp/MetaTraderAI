@@ -58,30 +58,35 @@ class OpenRouterClient:
         response.raise_for_status()
         return response.json().get("data", [])
 
-    async def chat_completion(
-        self,
-        model: str,
-        messages: list[dict],
-        temperature: float = 0.7,
-        max_tokens: int = 1024,
-        response_format: Optional[dict] = None,
-        stop: Optional[list[str]] = None,
-    ) -> dict:
-        client = await self._get_client()
-        payload = {
-            "model": model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if response_format:
-            payload["response_format"] = response_format
-        if stop:
-            payload["stop"] = stop
+async def chat_completion(
+    self,
+    model: str,
+    messages: list[dict],
+    temperature: float = 0.7,
+    max_tokens: int = 1024,
+    response_format: Optional[dict] = None,
+    stop: Optional[list[str]] = None,
+    extra_headers: Optional[dict[str, str]] = None,
+) -> dict:
+    client = await self._get_client()
+    payload = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if response_format:
+        payload["response_format"] = response_format
+    if stop:
+        payload["stop"] = stop
 
-        response = await client.post("/chat/completions", json=payload)
-        response.raise_for_status()
-        return response.json()
+    headers = {}
+    if extra_headers:
+        headers.update(extra_headers)
+
+    response = await client.post("/chat/completions", json=payload, headers=headers)
+    response.raise_for_status()
+    return response.json()
 
     async def chat_completion_tracked(
         self,
@@ -119,6 +124,17 @@ class OpenRouterClient:
                 else:
                     raise BudgetExceededError(model, check.budget, check.spent)
 
+        extra_headers = {}
+        try:
+            from app.core.credentials import credential_service
+            user_api_key = await credential_service.get_effective_key(
+                user_id, "openrouter", settings.OPENROUTER_API_KEY
+            )
+            if user_api_key and user_api_key != self.api_key:
+                extra_headers["Authorization"] = f"Bearer {user_api_key}"
+        except Exception as e:
+            logger.debug(f"Failed to load per-user OpenRouter key: {e}")
+
         response = await self.chat_completion(
             model=model,
             messages=messages,
@@ -126,6 +142,7 @@ class OpenRouterClient:
             max_tokens=max_tokens,
             response_format=response_format,
             stop=stop,
+            extra_headers=extra_headers if extra_headers else None,
         )
 
         cost = self.extract_cost(response)

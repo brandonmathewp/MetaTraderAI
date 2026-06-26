@@ -1,2 +1,2 @@
-from app.api.routes.learning import router as learning_router
-from app.api.routes.scripts import router as scripts_router
+from app.api.routes.settings import router as settings_router
+from app.api.routes.admin import router as admin_router

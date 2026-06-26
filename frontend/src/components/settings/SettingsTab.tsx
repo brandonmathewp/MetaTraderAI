@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Key, DollarSign, Shield, Brain, Database, Sun, Moon } from 'lucide-react';
-import { costsApi, learningApi, tradingApi } from '@/lib/api';
+import { costsApi, learningApi, tradingApi, settingsApi } from '@/lib/api';
 import { useCostsStore } from '@/stores/costsStore';
 import { useModelGraphStore } from '@/stores/modelGraphStore';
 import { useTradingStore } from '@/stores/tradingStore';
@@ -26,6 +26,7 @@ export default function SettingsTab() {
   const [improverAggressiveness, setImproverAggressiveness] = useState('moderate');
   const [autoApply, setAutoApply] = useState(false);
   const [improverRunning, setImproverRunning] = useState(false);
+  const [storedServices, setStoredServices] = useState<{ id: number; service: string; key_preview: string }[]>([]);
 
   const setThemeAndSync = (t: 'dark' | 'light') => {
     setTheme(t);
@@ -48,6 +49,14 @@ export default function SettingsTab() {
     costsApi.getBudgets().then((r: any) => setBudgets(r)).catch(() => {});
   }, [setBudgets]);
 
+  useEffect(() => {
+    settingsApi.getKeys().then((r: any) => setStoredServices(r.services || [])).catch(() => {});
+  }, []);
+
+  const refreshStoredKeys = () => {
+    settingsApi.getKeys().then((r: any) => setStoredServices(r.services || [])).catch(() => {});
+  };
+
   const sections = [
     {
       id: 'api',
@@ -65,6 +74,20 @@ export default function SettingsTab() {
               className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
+          <button
+            onClick={() => {
+              if (!openrouterKey) { toast.error('Enter an API key'); return; }
+              settingsApi.saveKey('openrouter', openrouterKey, '').then(() => {
+                setOpenrouterKey('');
+                refreshStoredKeys();
+                toast.success('OpenRouter key saved');
+              }).catch((e: any) => toast.error(e.message || 'Failed'));
+            }}
+            className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium"
+          >
+            {storedServices.some((s) => s.service === 'openrouter') ? 'Update' : 'Save'} OpenRouter Key
+          </button>
+          <div className="border-t border-border/50" />
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Binance.US API Key</label>
             <input
@@ -85,9 +108,43 @@ export default function SettingsTab() {
               className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <div className="text-[10px] text-muted-foreground">
-            API keys are configured via <code className="text-primary/70">.env</code> on the server.
-          </div>
+          <button
+            onClick={() => {
+              if (!binanceKey || !binanceSecret) { toast.error('Enter both API key and secret'); return; }
+              settingsApi.saveKey('binance', binanceKey, binanceSecret).then(() => {
+                setBinanceKey('');
+                setBinanceSecret('');
+                refreshStoredKeys();
+                toast.success('Binance keys saved');
+              }).catch((e: any) => toast.error(e.message || 'Failed'));
+            }}
+            className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium"
+          >
+            {storedServices.some((s) => s.service === 'binance') ? 'Update' : 'Save'} Binance Keys
+          </button>
+          {storedServices.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {storedServices.map((s) => (
+                <div key={s.id} className="flex justify-between items-center text-xs bg-card border border-border rounded px-2 py-1.5">
+                  <span className="font-medium">{s.service}</span>
+                  <div className="flex items-center gap-2">
+                    <code className="text-muted-foreground">{s.key_preview}</code>
+                    <button
+                      onClick={() => {
+                        settingsApi.deleteKey(s.service).then(() => {
+                          refreshStoredKeys();
+                          toast.success(`${s.service} keys removed`);
+                        }).catch(() => toast.error('Failed'));
+                      }}
+                      className="text-red-400 hover:text-red-300 text-[10px]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ),
     },

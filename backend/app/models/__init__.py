@@ -12,6 +12,7 @@ from app.models.models import (
     CustomScript,
     PerformanceSnapshot,
     AutoImproverMutation,
+    SystemSetting,
 )
 
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "CustomScript",
     "PerformanceSnapshot",
     "AutoImproverMutation",
+    "SystemSetting",
 ]

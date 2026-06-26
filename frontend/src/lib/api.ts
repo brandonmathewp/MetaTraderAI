@@ -85,7 +85,8 @@ export const authApi = {
     api.post<{ access_token: string; refresh_token: string }>('/api/auth/register', { email, password }),
   login: (email: string, password: string) =>
     api.post<{ access_token: string; refresh_token: string }>('/api/auth/login', { email, password }),
-  me: () => api.get<{ id: number; email: string; is_active: boolean }>('/api/auth/me'),
+  me: () => api.get<{ id: number; email: string; is_active: boolean; is_admin: boolean }>('/api/auth/me'),
+  registrationStatus: () => api.get<{ registration_enabled: boolean }>('/api/auth/registration-status'),
 };
 
 export const marketApi = {
@@ -207,4 +208,22 @@ export const scriptsApi = {
     api.post('/api/scripts/execute', data),
   validate: (code: string) => api.post('/api/scripts/validate', { code }),
   getTemplates: () => api.get('/api/scripts/templates'),
+};
+
+export const settingsApi = {
+  getKeys: () => api.get<{ services: { id: number; service: string; key_preview: string }[] }>('/api/settings/keys'),
+  saveKey: (service: string, apiKey: string, apiSecret: string) =>
+    api.put(`/api/settings/keys/${service}`, { api_key: apiKey, api_secret: apiSecret }),
+  deleteKey: (service: string) => api.delete(`/api/settings/keys/${service}`),
+};
+
+export const adminApi = {
+  getUsers: () => api.get('/api/admin/users'),
+  updateUser: (userId: number, data: { is_active?: boolean; is_admin?: boolean }) =>
+    api.put(`/api/admin/users/${userId}`, data),
+  deleteUser: (userId: number) => api.delete(`/api/admin/users/${userId}`),
+  getSettings: () => api.get<Record<string, string>>('/api/admin/settings'),
+  updateSettings: (key: string, value: string) =>
+    api.put('/api/admin/settings', { key, value }),
+  getStats: () => api.get('/api/admin/stats'),
 };

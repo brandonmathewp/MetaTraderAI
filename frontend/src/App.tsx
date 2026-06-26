@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import {
-  TrendingUp, BarChart3, Code2, PieChart, DollarSign, Settings, Sun, Moon,
+  TrendingUp, BarChart3, Code2, PieChart, DollarSign, Settings, Sun, Moon, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/lib/api';
@@ -14,6 +14,7 @@ const EditorTab = lazy(() => import('@/components/editor/EditorTab'));
 const StatsTab = lazy(() => import('@/components/stats/StatsTab'));
 const CostsTab = lazy(() => import('@/components/costs/CostsTab'));
 const SettingsTab = lazy(() => import('@/components/settings/SettingsTab'));
+const AdminTab = lazy(() => import('@/components/admin/AdminTab'));
 
 const TABS = [
   { id: 'market', label: 'Market', icon: TrendingUp, shortcut: '1' },
@@ -52,7 +53,7 @@ export default function App() {
   useEffect(() => {
     if (isAuthenticated && !user) {
       authApi.me()
-        .then((u) => setUser({ id: u.id, email: u.email, is_active: u.is_active }))
+        .then((u) => setUser({ id: u.id, email: u.email, is_active: u.is_active, is_admin: u.is_admin }))
         .catch(() => { setUser(null); })
         .finally(() => setLoading(false));
     } else {
@@ -132,6 +133,7 @@ export default function App() {
           {tab === 'stats' && <StatsTab />}
           {tab === 'costs' && <CostsTab />}
           {tab === 'settings' && <SettingsTab />}
+          {tab === 'admin' && <AdminTab />}
         </Suspense>
       </div>
 
@@ -150,6 +152,18 @@ export default function App() {
             <span className="text-[10px] font-medium">{label}</span>
           </button>
         ))}
+        {user?.is_admin && (
+          <button
+            onClick={() => setTab('admin')}
+            className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg min-w-0 transition-colors ${
+              tab === 'admin' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            title="Admin"
+          >
+            <Shield className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Admin</span>
+          </button>
+        )}
       </nav>
     </div>
   );

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
 
     BINANCE_API_BASE: str = "https://api.binance.us"
     BINANCE_WS_BASE: str = "wss://stream.binance.us:9443/ws"
+    BINANCE_API_KEY: str = ""
+    BINANCE_API_SECRET: str = ""
 
     CHROMA_PERSIST_DIR: str = "./chroma_data"
 

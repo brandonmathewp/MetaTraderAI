@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.database import engine, Base
 from app.core.security import decode_token
-from app.api.routes import auth, market, trading, strategies, costs, learning, scripts
+from app.api.routes import auth, market, trading, strategies, costs, learning, scripts, settings, admin
 from app.api.websocket import websocket_endpoint
 
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,8 @@ app.include_router(strategies.router)
 app.include_router(costs.router)
 app.include_router(learning.router)
 app.include_router(scripts.router)
+app.include_router(settings.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

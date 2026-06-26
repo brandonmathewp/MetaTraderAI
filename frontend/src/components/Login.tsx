@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TrendingUp, Mail, Lock, LogIn } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
@@ -9,7 +9,14 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const { setUser } = useAuthStore();
+
+  useEffect(() => {
+    authApi.registrationStatus().then((r) => {
+      setRegistrationEnabled(r.registration_enabled);
+    }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +28,7 @@ export default function Login() {
       localStorage.setItem('access_token', res.access_token);
       localStorage.setItem('refresh_token', res.refresh_token);
       const user = await authApi.me();
-      setUser({ id: user.id, email: user.email, is_active: user.is_active });
+      setUser({ id: user.id, email: user.email, is_active: user.is_active, is_admin: user.is_admin });
     } catch (err: any) {
       setError(err.message || 'Authentication failed');
     } finally {
@@ -89,8 +96,11 @@ export default function Login() {
             type="button"
             onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setError(''); }}
             className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            disabled={!registrationEnabled && mode === 'login'}
           >
-            {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign In'}
+            {!registrationEnabled
+              ? 'Registration is currently disabled'
+              : mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign In'}
           </button>
         </form>
       </div>

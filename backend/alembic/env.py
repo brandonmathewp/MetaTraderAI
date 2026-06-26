@@ -13,6 +13,7 @@ from app.models.models import (  # noqa: F401
     Strategy, GraphNode, GraphEdge, ModelCost,
     DailyBudget, CustomScript, PerformanceSnapshot,
     AutoImproverMutation, StrategyExecution, TradeMemoryEmbedding,
+    SystemSetting,
 )
 
 config = context.config

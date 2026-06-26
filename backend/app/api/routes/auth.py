@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -27,6 +27,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    from app.core.credentials import credential_service
+
+    registration_enabled = await credential_service.get_system_setting("registration_enabled", "true")
+    if registration_enabled.lower() != "true":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Registration is currently disabled")
+
     existing = await db.execute(select(User).where(User.email == req.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -34,7 +40,12 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if len(req.password) < 8:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 8 characters")
 
+    user_count = await db.execute(select(func.count(User.id)))
+    total_users = user_count.scalar()
+
     user = User(email=req.email, password_hash=hash_password(req.password))
+    if total_users == 0:
+        user.is_admin = True
     db.add(user)
     await db.flush()
 
@@ -86,6 +97,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
         id=current_user.id,
         email=current_user.email,
         is_active=current_user.is_active,
+        is_admin=current_user.is_admin,
         created_at=current_user.created_at.isoformat() if current_user.created_at else "",
     )
 
@@ -93,3 +105,10 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @router.post("/logout", response_model=MessageResponse)
 async def logout(current_user: User = Depends(get_current_user)):
     return MessageResponse(message="Logged out (client should discard tokens)")
+
+
+@router.get("/registration-status")
+async def registration_status():
+    from app.core.credentials import credential_service
+    registration_enabled = await credential_service.get_system_setting("registration_enabled", "true")
+    return {"registration_enabled": registration_enabled.lower() == "true"}

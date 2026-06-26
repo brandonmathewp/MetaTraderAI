@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     is_active: bool
+    is_admin: bool
     created_at: str
 
     class Config:

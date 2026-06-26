@@ -49,6 +49,26 @@ class StrategyScheduler:
         self._setup_handlers()
         self._running = False
 
+    async def _get_user_key(self, user_id: int, service: str) -> str:
+        try:
+            from app.core.credentials import credential_service
+            from app.core.config import get_settings
+            settings = get_settings()
+            env_key = settings.OPENROUTER_API_KEY if service == "openrouter" else settings.BINANCE_API_KEY
+            return await credential_service.get_effective_key(user_id, service, env_key) or ""
+        except Exception:
+            return ""
+
+    async def _get_user_secret(self, user_id: int, service: str) -> str:
+        try:
+            from app.core.credentials import credential_service
+            from app.core.config import get_settings
+            settings = get_settings()
+            env_secret = settings.BINANCE_API_SECRET
+            return await credential_service.get_effective_secret(user_id, service, env_secret) or ""
+        except Exception:
+            return ""
+
     def _setup_handlers(self):
         self._executor.register_handler(NodeType.TRIGGER, self._handle_trigger)
         self._executor.register_handler(NodeType.MARKET_DATA, self._handle_market_data)
@@ -230,9 +250,10 @@ class StrategyScheduler:
                     )
 
                     symbol = node.symbol or "BTCUSDT"
-                    client = BinanceClient()
+                    client = BinanceClient(api_key=await self._get_user_key(ctx.user_id, "binance"),
+                                          api_secret=await self._get_user_secret(ctx.user_id, "binance"))
                     try:
-                        ticker_data = await client.get_ticker(symbol)
+                        ticker_data = await client.get_ticker_24hr(symbol)
                         current_price = float(ticker_data.get("price", 0))
                     except Exception:
                         current_price = 0

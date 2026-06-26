@@ -14,12 +14,14 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     portfolios: Mapped[list["Portfolio"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     strategies: Mapped[list["Strategy"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     custom_scripts: Mapped[list["CustomScript"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     daily_budgets: Mapped[list["DailyBudget"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    api_keys: Mapped[list["ApiKey"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
 class ApiKey(Base):
@@ -31,6 +33,8 @@ class ApiKey(Base):
     api_key_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     api_secret_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user: Mapped["User"] = relationship(back_populates="api_keys")
 
 
 class Portfolio(Base):
@@ -200,4 +204,14 @@ class AutoImproverMutation(Base):
     applied: Mapped[bool] = mapped_column(Boolean, default=False)
     performance_before: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     performance_after: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

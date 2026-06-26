@@ -3,15 +3,28 @@ set -euo pipefail
 
 # MetaTrader VPS Setup Script
 # Run as root on a fresh Ubuntu 24.04 VPS:
-#   chmod +x setup.sh && sudo ./setup.sh
+#   chmod +x setup.sh && sudo ./setup.sh                  # auto-detect public IP
+#   chmod +x setup.sh && sudo ./setup.sh your-domain.com   # use a domain
 
 APP_DIR="/opt/metatrader"
 BACKEND_DIR="$APP_DIR/backend"
 VENV_DIR="$BACKEND_DIR/venv"
 PYTHON_VERSION="3.12"
-DOMAIN="${1:-localhost}"
+DOMAIN="${1:-}"
 
 echo "=== MetaTrader VPS Setup ==="
+
+if [ -z "$DOMAIN" ]; then
+  echo ">>> No domain provided, detecting public IPv4..."
+  PUBLIC_IP=$(curl -s4 --connect-timeout 5 ifconfig.me 2>/dev/null || curl -s4 --connect-timeout 5 icanhazip.com 2>/dev/null || echo "")
+  if [ -n "$PUBLIC_IP" ]; then
+    DOMAIN="$PUBLIC_IP"
+    echo ">>> Using public IP: $DOMAIN"
+  else
+    DOMAIN="localhost"
+    echo ">>> Could not detect public IP, falling back to localhost"
+  fi
+fi
 
 # System packages
 echo ">>> Installing system packages..."
@@ -152,8 +165,10 @@ echo ""
 echo "Next steps:"
 echo "1. Edit $APP_DIR/.env with your API keys"
 echo "2. Run: alembic upgrade head   (from $BACKEND_DIR with venv activated)"
-echo "3. Build frontend: cd frontend && npm run build"
+echo "3. Build frontend: cd $APP_DIR/frontend && npm run build"
 echo "4. Start: systemctl start metatrader-api metatrader-worker"
-echo "5. Enable SSL: certbot --nginx -d $DOMAIN"
+if [ -n "${1:-}" ]; then
+  echo "5. Enable SSL: certbot --nginx -d $DOMAIN"
+fi
 echo ""
-echo "API will be at: http://$DOMAIN (after starting services)"
+echo "App will be at: http://$DOMAIN (after starting services)"
