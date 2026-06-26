@@ -438,7 +438,7 @@ cmd_install() {
         "$PYTHON_BIN-venv" "$PYTHON_BIN-dev" \
         postgresql postgresql-client redis-server \
         nginx \
-        nodejs npm curl git build-essential rsync
+        nodejs curl git build-essential rsync
     if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         warn "Skipping certbot — Let's Encrypt does not issue certificates for IP addresses"
     else
