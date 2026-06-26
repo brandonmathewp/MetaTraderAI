@@ -4,17 +4,17 @@ set -euo pipefail
 # MetaTrader — Full Lifecycle Management Script
 #
 # Usage:
-#   sudo ./setup.sh install [domain]     Full first-boot setup (fresh Ubuntu 24.04 VPS)
-#   sudo ./setup.sh uninstall            Reverse everything this script created
-#   sudo ./setup.sh reinstall [domain]   uninstall + install
-#   sudo ./setup.sh update               git pull + rebuild + restart
-#   sudo ./setup.sh upgrade              update + alembic upgrade head
-#   sudo ./setup.sh start                Start all services
-#   sudo ./setup.sh stop                 Stop all services
-#   sudo ./setup.sh restart              Restart all services
-#   sudo ./setup.sh status               Health check and runtime info
-#   sudo ./setup.sh logs [api|worker|nginx]  Tail service logs
-#   sudo ./setup.sh help                 Show this message
+#   sudo ./setup.sh install [domain] [git-url]   Full first-boot setup (fresh Ubuntu 24.04 VPS)
+#   sudo ./setup.sh uninstall                    Reverse everything this script created
+#   sudo ./setup.sh reinstall [domain] [git-url] uninstall + install
+#   sudo ./setup.sh update                       git pull + rebuild + restart
+#   sudo ./setup.sh upgrade                      update + alembic upgrade head
+#   sudo ./setup.sh start                        Start all services
+#   sudo ./setup.sh stop                         Stop all services
+#   sudo ./setup.sh restart                      Restart all services
+#   sudo ./setup.sh status                       Health check and runtime info
+#   sudo ./setup.sh logs [api|worker|nginx]       Tail service logs
+#   sudo ./setup.sh help                         Show this message
 
 # ── Configuration ───────────────────────────────────────────────────────────
 APP_DIR="/opt/metatrader"
@@ -385,10 +385,62 @@ set_permissions() {
 # COMMANDS
 # ═════════════════════════════════════════════════════════════════════════════
 
+ensure_repo() {
+    local GIT_URL="${1:-}"
+
+    # ── Path already exists ──
+    if [ -d "$APP_DIR" ]; then
+        if [ -d "$APP_DIR/.git" ]; then
+            echo ""; warn "$APP_DIR already exists (git repository detected)."
+            echo "  [A]bort    — exit without changes"
+            echo "  [U]pdate   — git pull + rebuild + restart"
+            echo "  [F]orce    — uninstall everything then reinstall fresh"
+            echo ""
+            read -rp "Choose [A/u/f]: " choice
+            case "${choice:-a}" in
+                u|U) cmd_update; exit 0 ;;
+                f|F) cmd_uninstall "$@" <<< "CONFIRM" ;;
+                *)   die "Aborted." ;;
+            esac
+        else
+            die "$APP_DIR exists but is not a git repository. Remove it manually and try again."
+        fi
+    fi
+
+    # ── Clone if URL provided ──
+    if [ -n "$GIT_URL" ]; then
+        info "Cloning $GIT_URL → $APP_DIR..."
+        git clone "$GIT_URL" "$APP_DIR"
+        ok "Repository cloned"
+    elif git rev-parse --show-toplevel &>/dev/null 2>&1; then
+        # We're running from inside a git repo — copy it
+        local repo_root; repo_root=$(git rev-parse --show-toplevel)
+        info "Copying repository from $repo_root → $APP_DIR..."
+        mkdir -p "$APP_DIR"
+        rsync -a "$repo_root/" "$APP_DIR/" --exclude='.git' --exclude='node_modules' --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' --exclude='dist' --exclude='chroma_data'
+        git -C "$repo_root" rev-parse HEAD > "$APP_DIR/.git-commit"
+        ok "Repository copied (commit $(cat "$APP_DIR/.git-commit"))"
+    else
+        die "No git URL provided and not running from a repository."
+        echo "Usage: sudo ./setup.sh install <domain> <git-url>"
+        echo "Example: sudo ./setup.sh install my-domain.com https://github.com/user/metatrader.git"
+        exit 1
+    fi
+
+    # ── Validate the cloned repo looks correct ──
+    if [ ! -f "$BACKEND_DIR/requirements.txt" ] || [ ! -f "$APP_DIR/frontend/package.json" ]; then
+        warn "Cloned repository does not appear to be MetaTrader (missing backend/requirements.txt or frontend/package.json)."
+        rm -rf "$APP_DIR"
+        die "Aborted — invalid repository structure."
+    fi
+}
+
 cmd_install() {
     DOMAIN="${1:-}"
+    GIT_URL="${2:-}"
     must_be_root
-    [ -d "$APP_DIR" ] && die "$APP_DIR already exists. Run 'uninstall' first or 'update' to refresh."
+
+    ensure_repo "$GIT_URL"
 
     echo -e "${GREEN}╔══════════════════════════════════╗${NC}"
     echo -e "${GREEN}║   MetaTrader VPS Installer       ║${NC}"
@@ -400,7 +452,6 @@ cmd_install() {
     echo ""; info "PHASE 1: System preparation"
     first_boot_update
     check_python
-    mkdir -p "$APP_DIR" "$BACKEND_DIR"
 
     # ── Phase 2: System packages ──
     echo ""; info "PHASE 2: System packages"
@@ -530,8 +581,8 @@ cmd_restart() { must_be_root; require_manifest; systemctl restart $SERVICES; ok 
 
 cmd_reinstall() {
     DOMAIN="${1:-}"
-    cmd_uninstall <<< "CONFIRM"
-    cmd_install "$DOMAIN"
+    GIT_URL="${2:-}"
+    cmd_install "$DOMAIN" "$GIT_URL"
 }
 
 cmd_status() {
@@ -582,17 +633,22 @@ cmd_help() {
     echo "Usage: sudo ./setup.sh <command> [args]"
     echo ""
     echo "Commands:"
-    echo "  install [domain]   Full first-boot setup (fresh Ubuntu 24.04 VPS)"
-    echo "  uninstall          Reverse everything this script created"
-    echo "  reinstall [domain] Uninstall + install fresh"
-    echo "  update             Git pull + rebuild + restart"
-    echo "  upgrade            Update + run DB migrations"
-    echo "  start              Start metatrader-api and metatrader-worker"
-    echo "  stop               Stop all services"
-    echo "  restart            Restart all services"
-    echo "  status             Show service health, disk usage, open ports"
-    echo "  logs [api|worker|nginx]  Tail service logs"
-    echo "  help               Show this message"
+    echo "  install [domain] [git-url]  Full first-boot setup (fresh Ubuntu 24.04 VPS)"
+    echo "  uninstall                  Reverse everything this script created"
+    echo "  reinstall [domain] [git-url] Uninstall + install fresh"
+    echo "  update                     Git pull + rebuild + restart"
+    echo "  upgrade                    Update + run DB migrations"
+    echo "  start                      Start metatrader-api and metatrader-worker"
+    echo "  stop                       Stop all services"
+    echo "  restart                    Restart all services"
+    echo "  status                     Show service health, disk usage, open ports"
+    echo "  logs [api|worker|nginx]     Tail service logs"
+    echo "  help                       Show this message"
+    echo ""
+    echo "Examples:"
+    echo "  sudo ./setup.sh install                                    # auto-detect IP, clone from cwd"
+    echo "  sudo ./setup.sh install my-domain.com                      # with domain, clone from cwd"
+    echo "  sudo ./setup.sh install my-domain.com https://github.com/.. # full URL"
     echo ""
     echo "Python requirement: $REQUIRED_PYTHON.x (auto-installed if missing)"
     echo "First install auto-detects public IPv4 if no domain provided."

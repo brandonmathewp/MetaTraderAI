@@ -113,20 +113,19 @@ The frontend dev server proxies `/api` and `/ws` requests to the backend at `127
 
 ## VPS Deployment
 
-The setup script provides full lifecycle management for Ubuntu 24.04. It automatically installs everything needed — PostgreSQL, Redis, Nginx, Node.js, and Python 3.12 — tracking exactly what it installed so it can cleanly reverse on uninstall.
+One-liner for a fresh Ubuntu 24.04 VPS. The script installs everything — PostgreSQL, Redis, Nginx, Node.js, and Python 3.12 — tracks exactly what it installed, and handles the full application lifecycle.
 
 ```bash
-git clone <your-repo-url> /opt/metatrader
-cd /opt/metatrader
+# Auto-detect public IPv4:
+curl -o- https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install
 
-# Full first-boot install (auto-detects public IPv4 if no domain provided)
-sudo scripts/setup.sh install
-
-# Or with a domain:
-sudo scripts/setup.sh install your-domain.com
+# With a domain:
+curl -o- https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install your-domain.com
 ```
 
-The install command handles a completely fresh VPS: runs system updates, installs and configures all dependencies, creates the database, builds the frontend, runs migrations, and sets up systemd services (not started until you explicitly start them).
+The install command handles a completely fresh VPS: runs system updates, clones the repository, installs and configures all dependencies, creates the database, builds the frontend, runs migrations, and sets up systemd services (not auto-started — you control when they start).
+
+**After install:** `sudo scripts/setup.sh start` from `/opt/metatrader`, then access the app at `http://<your-ip-or-domain>`. The first registered user automatically becomes admin.
 
 ### Lifecycle Commands
 
