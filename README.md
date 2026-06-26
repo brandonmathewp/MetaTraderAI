@@ -113,32 +113,52 @@ The frontend dev server proxies `/api` and `/ws` requests to the backend at `127
 
 ## VPS Deployment
 
-One-command setup for Ubuntu 24.04:
+The setup script provides full lifecycle management for Ubuntu 24.04. It automatically installs everything needed — PostgreSQL, Redis, Nginx, Node.js, and Python 3.12 — tracking exactly what it installed so it can cleanly reverse on uninstall.
 
 ```bash
-# Clone and run setup
 git clone <your-repo-url> /opt/metatrader
 cd /opt/metatrader
-sudo scripts/setup.sh your-domain.com
 
-# Edit environment
-nano /opt/metatrader/.env
+# Full first-boot install (auto-detects public IPv4 if no domain provided)
+sudo scripts/setup.sh install
 
-# Run database migrations
-cd /opt/metatrader/backend
-source venv/bin/activate
-alembic upgrade head
-
-# Build frontend
-cd /opt/metatrader/frontend
-npm run build
-
-# Start services
-systemctl start metatrader-api metatrader-worker
-systemctl enable metatrader-api metatrader-worker
+# Or with a domain:
+sudo scripts/setup.sh install your-domain.com
 ```
 
-The setup script installs PostgreSQL, Redis, Nginx, Node.js, and configures systemd services with TLS-ready Nginx configuration. Run `certbot --nginx -d your-domain.com` for HTTPS.
+The install command handles a completely fresh VPS: runs system updates, installs and configures all dependencies, creates the database, builds the frontend, runs migrations, and sets up systemd services (not started until you explicitly start them).
+
+### Lifecycle Commands
+
+| Command | Description |
+|---------|-------------|
+| `sudo ./setup.sh install [domain]` | Full first-boot setup from scratch |
+| `sudo ./setup.sh start` | Start all services |
+| `sudo ./setup.sh stop` | Stop all services |
+| `sudo ./setup.sh restart` | Restart all services |
+| `sudo ./setup.sh update` | Git pull + rebuild + restart (no DB changes) |
+| `sudo ./setup.sh upgrade` | Update + run DB migrations |
+| `sudo ./setup.sh status` | Health check: services, disk, open ports, logs |
+| `sudo ./setup.sh logs [api\|worker\|nginx]` | Tail live service logs |
+| `sudo ./setup.sh uninstall` | Reverse everything (only removes packages this script installed) |
+| `sudo ./setup.sh reinstall [domain]` | Uninstall + fresh install |
+| `sudo ./setup.sh help` | Show usage |
+
+### After Install
+
+```bash
+# 1. Edit environment (API keys, passwords)
+sudo nano /opt/metatrader/.env
+
+# 2. Start the application
+sudo scripts/setup.sh start
+
+# 3. Enable SSL (domain only — Let's Encrypt doesn't issue certs for bare IPs)
+sudo certbot --nginx -d your-domain.com
+
+# Access at http://<your-ip-or-domain>
+# The first registered user automatically becomes admin
+```
 
 ---
 
