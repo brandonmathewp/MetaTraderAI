@@ -1,0 +1,13 @@
+# Production
+start cmd: /usr/bin/systemctl start metatrader-api metatrader-worker
+stop cmd: /usr/bin/systemctl stop metatrader-api metatrader-worker
+restart cmd: /usr/bin/systemctl restart metatrader-api metatrader-worker
+check cmd: /usr/bin/systemctl status metatrader-api
+
+# Deployment
+deploy cmd: |
+  cd /opt/metatrader
+  git pull origin main
+  cd frontend && npm ci && npm run build
+  cd ../backend && source venv/bin/activate && pip install -r requirements.txt -q
+  sudo systemctl restart metatrader-api metatrader-worker
