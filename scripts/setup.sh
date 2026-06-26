@@ -159,6 +159,7 @@ first_boot_update() {
     info "Running system update (first-boot VPS)..."
     apt-get update -qq
     apt-get upgrade -y -qq
+    apt-get --fix-broken install -y -qq || true
     ok "System packages updated"
 }
 
@@ -438,6 +439,7 @@ ensure_repo() {
 cmd_install() {
     DOMAIN="${1:-}"
     GIT_URL="${2:-}"
+    [ "$DOMAIN" = "--" ] && DOMAIN=""
     must_be_root
 
     ensure_repo "$GIT_URL"
@@ -456,11 +458,18 @@ cmd_install() {
     # ── Phase 2: System packages ──
     echo ""; info "PHASE 2: System packages"
     snapshot_packages
-    apt-get install -y -qq \
+    info "Installing core packages..."
+    apt-get install -y \
         "$PYTHON_BIN-venv" "$PYTHON_BIN-dev" \
         postgresql postgresql-client redis-server \
-        nginx certbot python3-certbot-nginx \
-        nodejs npm curl git build-essential
+        nginx \
+        nodejs npm curl git build-essential rsync
+    if [[ "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        warn "Skipping certbot — Let's Encrypt does not issue certificates for IP addresses"
+    else
+        info "Installing certbot..."
+        apt-get install -y certbot python3-certbot-nginx 2>/dev/null || warn "certbot skipped — SSL will be unavailable"
+    fi
     record_new_packages
     ensure_system_user
 
@@ -495,7 +504,7 @@ cmd_install() {
     echo "Next steps:"
     echo "  1. Edit $APP_DIR/.env with your API keys"
     echo "  2. Start:  sudo ./setup.sh start"
-    if [ -n "${1:-}" ]; then
+    if [[ ! "$DOMAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ -n "${1:-}" ]; then
         echo "  3. Enable SSL: certbot --nginx -d $DOMAIN"
     fi
     echo ""
@@ -582,6 +591,7 @@ cmd_restart() { must_be_root; require_manifest; systemctl restart $SERVICES; ok 
 cmd_reinstall() {
     DOMAIN="${1:-}"
     GIT_URL="${2:-}"
+    [ "$DOMAIN" = "--" ] && DOMAIN=""
     cmd_install "$DOMAIN" "$GIT_URL"
 }
 
