@@ -392,16 +392,18 @@ ensure_repo() {
     # ── Path already exists ──
     if [ -d "$APP_DIR" ]; then
         if [ -d "$APP_DIR/.git" ]; then
+            exec 3<&0
+            exec 0</dev/tty 2>/dev/null || true
             echo ""; warn "$APP_DIR already exists (git repository detected)."
             echo "  [a] Abort    — exit without changes (press Enter)"
             echo "  [u] Update   — git pull + rebuild + restart"
             echo "  [f] Force    — uninstall everything then reinstall fresh"
             echo ""
-            read -rp "Choice [a/u/f]: " choice </dev/tty
+            read -rp "Choice [a/u/f]: " choice
             case "${choice:-a}" in
-                u|U) cmd_update; exit 0 ;;
-                f|F) cmd_uninstall "$@" <<< "CONFIRM" ;;
-                *)   die "Aborted." ;;
+                u|U) exec 0<&3 2>/dev/null; exec 3<&-; cmd_update; exit 0 ;;
+                f|F) exec 0<&3 2>/dev/null; exec 3<&-; cmd_uninstall "$@" <<< "CONFIRM" ;;
+                *)   exec 0<&3 2>/dev/null; exec 3<&-; die "Aborted." ;;
             esac
         else
             die "$APP_DIR exists but is not a git repository. Remove it manually and try again."
@@ -523,7 +525,10 @@ cmd_uninstall() {
     warn "This will DELETE all MetaTrader data including the database."
     warn "Packages that were already installed before this script will be kept."
     echo ""
-    read -rp "Type CONFIRM to proceed: " confirm </dev/tty
+    exec 3<&0
+    exec 0</dev/tty 2>/dev/null || true
+    read -rp "Type CONFIRM to proceed: " confirm
+    exec 0<&3 2>/dev/null; exec 3<&-
     [ "$confirm" = "CONFIRM" ] || die "Aborted."
 
     teardown_systemd
