@@ -393,11 +393,11 @@ ensure_repo() {
     if [ -d "$APP_DIR" ]; then
         if [ -d "$APP_DIR/.git" ]; then
             echo ""; warn "$APP_DIR already exists (git repository detected)."
-            echo "  [A]bort    — exit without changes"
-            echo "  [U]pdate   — git pull + rebuild + restart"
-            echo "  [F]orce    — uninstall everything then reinstall fresh"
+            echo "  [a] Abort    — exit without changes (press Enter)"
+            echo "  [u] Update   — git pull + rebuild + restart"
+            echo "  [f] Force    — uninstall everything then reinstall fresh"
             echo ""
-            read -rp "Choose [A/u/f]: " choice
+            read -rp "Choice [a/u/f]: " choice </dev/tty
             case "${choice:-a}" in
                 u|U) cmd_update; exit 0 ;;
                 f|F) cmd_uninstall "$@" <<< "CONFIRM" ;;
@@ -523,7 +523,7 @@ cmd_uninstall() {
     warn "This will DELETE all MetaTrader data including the database."
     warn "Packages that were already installed before this script will be kept."
     echo ""
-    read -rp "Type CONFIRM to proceed: " confirm
+    read -rp "Type CONFIRM to proceed: " confirm </dev/tty
     [ "$confirm" = "CONFIRM" ] || die "Aborted."
 
     teardown_systemd
