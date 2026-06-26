@@ -159,12 +159,7 @@ async def execute_script(
 ):
     valid, errors = validate_script(data.code)
     if not valid:
-        return {
-            "success": False,
-            "output": "",
-            "errors": errors,
-            "validation_failed": True,
-        }
+        raise HTTPException(status_code=400, detail={"errors": errors})
 
     sandbox = sandbox_factory(
         user_id=current_user.id,

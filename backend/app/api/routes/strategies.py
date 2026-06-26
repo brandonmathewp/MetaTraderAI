@@ -420,8 +420,7 @@ async def execute_strategy_stream(
     async def on_event(event: dict):
         await events_queue.put(event)
 
-    exec_engine = scheduler._executor
-    exec_engine.on_event(on_event)
+    scheduler.set_executor_on_event(on_event)
 
     async def event_stream():
         import asyncio as aio

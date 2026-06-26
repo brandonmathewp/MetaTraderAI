@@ -81,7 +81,8 @@ class GraphExecutor:
         ctx: ExecutionContext,
         initial_input: Optional[dict] = None,
     ) -> dict[str, NodeResult]:
-        self._execution_log = []
+        execution_log: list[dict] = []
+        self._execution_log = execution_log
 
         # Build adjacency for input aggregation
         incoming: dict[str, list[str]] = defaultdict(list)

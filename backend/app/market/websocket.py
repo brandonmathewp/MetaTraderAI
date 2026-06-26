@@ -35,7 +35,9 @@ class BinanceWebSocket:
 
                 if stream in self._subscriptions:
                     for callback in self._subscriptions[stream]:
-                        self._tasks.append(asyncio.create_task(callback(stream_data)))
+                        self._tasks.append(asyncio.create_task(
+                            self._safe_callback(callback, stream_data)
+                        ))
 
                 # Clean up completed tasks
                 self._tasks = [t for t in self._tasks if not t.done()]
@@ -49,6 +51,12 @@ class BinanceWebSocket:
         if stream not in self._subscriptions:
             self._subscriptions[stream] = []
         self._subscriptions[stream].append(callback)
+
+    async def _safe_callback(self, callback: Callable[[dict], Awaitable], data: dict):
+        try:
+            await callback(data)
+        except Exception as e:
+            logger.error(f"Callback error for stream: {e}")
 
     def unsubscribe(self, stream: str, callback: Callable[[dict], Awaitable]):
         if stream in self._subscriptions and callback in self._subscriptions[stream]:

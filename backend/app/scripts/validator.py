@@ -81,9 +81,11 @@ def extract_functions(code: str) -> list[str]:
 
 def extract_symbols(code: str) -> list[str]:
     symbols = set()
-    # Find all string literals that look like trading pairs
-    for node in ast.walk(ast.parse(code)):
-        if isinstance(node, ast.Constant) and isinstance(node.value, str):
-            if re.match(r'^[A-Z]{2,10}USDT$', str(node.value)):
-                symbols.add(str(node.value))
+    try:
+        for node in ast.walk(ast.parse(code)):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if re.match(r'^[A-Z]{2,10}USDT$', str(node.value)):
+                    symbols.add(str(node.value))
+    except SyntaxError:
+        pass
     return sorted(symbols)

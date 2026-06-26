@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import random
@@ -12,6 +13,7 @@ from app.models.models import (
     Strategy, GraphNode, GraphEdge, AutoImproverMutation,
     Trade, Portfolio,
 )
+from app.engine.node_types import NodeType
 from app.learning.performance import analyzer
 from app.learning.cost_tracker import cost_tracker
 
@@ -66,8 +68,8 @@ class AutoImprover:
             )
             edges = edges_result.scalars().all()
 
-            llm_nodes = [n for n in nodes if n.node_type in ("llmModel", "council")]
-            action_nodes = [n for n in nodes if n.node_type == "action"]
+            llm_nodes = [n for n in nodes if n.node_type in (NodeType.LLM_MODEL.value, NodeType.COUNCIL.value)]
+            action_nodes = [n for n in nodes if n.node_type == NodeType.ACTION.value]
 
             if not llm_nodes:
                 return []
@@ -186,10 +188,10 @@ class AutoImprover:
 
     def _mutate_model_swap(self, node: GraphNode, config: dict, current_model: str) -> Optional[tuple]:
         cheaper = [m for m in MODEL_OPTIONS if m != current_model]
-            if not cheaper:
-                new_model = random.choice([m for m in MODEL_OPTIONS if m != current_model])
-            else:
-                new_model = random.choice(cheaper)
+        if not cheaper:
+            new_model = random.choice([m for m in MODEL_OPTIONS if m != current_model])
+        else:
+            new_model = random.choice(cheaper)
 
         config["model_name"] = new_model
         logger.info(f"Model swap: {current_model} -> {new_model}")
@@ -223,7 +225,7 @@ class AutoImprover:
             select(GraphNode).where(GraphNode.strategy_id == strategy_id)
         )
         nodes = nodes_result.scalars().all()
-        merge_nodes = [n for n in nodes if n.node_type == "merge"]
+        merge_nodes = [n for n in nodes if n.node_type == NodeType.MERGE.value]
         if not merge_nodes:
             return None
         merge_node = random.choice(merge_nodes)
@@ -296,9 +298,6 @@ class AutoImprover:
                 }
                 for m in result.scalars().all()
             ]
-
-
-import asyncio
 
 
 improver = AutoImprover()

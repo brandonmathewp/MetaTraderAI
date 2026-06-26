@@ -6,8 +6,9 @@ check cmd: /usr/bin/systemctl status metatrader-api
 
 # Deployment
 deploy cmd: |
-  cd /opt/metatrader
-  git pull origin main
-  cd frontend && npm ci && npm run build
-  cd ../backend && source venv/bin/activate && pip install -r requirements.txt -q
+  set -e
+  cd /opt/metatrader && git pull origin main
+  cd /opt/metatrader/frontend && npm ci && npm run build
+  cd /opt/metatrader/backend && /opt/metatrader/backend/venv/bin/pip install -r requirements.txt -q
+  cd /opt/metatrader/backend && /opt/metatrader/backend/venv/bin/alembic upgrade head
   sudo systemctl restart metatrader-api metatrader-worker

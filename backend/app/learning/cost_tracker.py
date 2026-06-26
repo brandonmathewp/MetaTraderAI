@@ -137,7 +137,7 @@ class CostTracker:
         fallbacks = {
             "gpt-4o": "gpt-4o-mini",
             "gpt-4-turbo": "gpt-4o-mini",
-            "claude-3-opus": "claude-3-sonnet",
+            "claude-3-opus": "claude-3-haiku",
             "claude-3.5-sonnet": "claude-3-haiku",
             "gemini-2.0-flash": "gemini-1.5-flash-8b",
         }

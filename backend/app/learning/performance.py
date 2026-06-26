@@ -143,9 +143,12 @@ class PerformanceAnalyzer:
 
     async def get_overall_stats(self, user_id: int) -> dict:
         async with async_session_factory() as db:
+            from app.models.models import Portfolio
+
             result = await db.execute(
                 select(func.count(Trade.id), func.sum(Trade.outcome_pnl))
-                .where(Trade.outcome_pnl is not None)
+                .join(Portfolio, Trade.portfolio_id == Portfolio.id)
+                .where(Trade.outcome_pnl is not None, Portfolio.user_id == user_id)
             )
             total, total_pnl = result.one()
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, Fragment } from 'react';
 import {
   BarChart3, TrendingUp, TrendingDown, DollarSign, Activity, Target,
   PieChart, Percent, AlertTriangle, ChevronDown, ChevronUp,
@@ -22,9 +22,8 @@ interface Position {
 }
 
 export default function StatsTab() {
-  const { portfolios, positions, trades, selectedPortfolioId, setPortfolios, setPositions, setTrades, setSelectedPortfolio } = useTradingStore();
+  const { portfolios, selectedPortfolioId, setPortfolios, setSelectedPortfolio } = useTradingStore();
   const { strategies, selectedStrategyId } = useModelGraphStore();
-  const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>(null);
   const [expandedTrade, setExpandedTrade] = useState<number | null>(null);
   const [positionsList, setPositionsList] = useState<Position[]>([]);
@@ -34,20 +33,18 @@ export default function StatsTab() {
   const [mutationHistory, setMutationHistory] = useState<any>([]);
   const [showLearning, setShowLearning] = useState(false);
 
-  const fetchData = () => {
+  useEffect(() => {
     tradingApi.getPortfolios().then((res: any) => {
       setPortfolios(res);
       if (res.length > 0 && !selectedPortfolioId) {
         setSelectedPortfolio(res[0].id);
       }
     }).catch(() => {});
-  };
-
-  useEffect(() => { fetchData(); }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedPortfolioId) return;
-    setLoading(true);
     Promise.all([
       tradingApi.getSummary(selectedPortfolioId),
       tradingApi.getPositions(selectedPortfolioId),
@@ -58,8 +55,7 @@ export default function StatsTab() {
       setPositionsList(Array.isArray(p) ? p : []);
       setTradesList(Array.isArray(t) ? t : []);
       setMemoryStats(mem);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {});
   }, [selectedPortfolioId]);
 
   // Periodic refresh
@@ -125,7 +121,14 @@ export default function StatsTab() {
               const name = prompt('Portfolio name:', 'My Portfolio');
               const balance = parseFloat(prompt('Initial balance:', '100000') || '100000');
               if (name && balance) {
-                tradingApi.createPortfolio(name, balance).then(() => fetchData()).catch(() => {});
+                tradingApi.createPortfolio(name, balance).then(() => {
+                  tradingApi.getPortfolios().then((res: any) => {
+                    setPortfolios(res);
+                    if (res.length > 0 && !selectedPortfolioId) {
+                      setSelectedPortfolio(res[0].id);
+                    }
+                  }).catch(() => {});
+                }).catch(() => {});
               }
             }}
             className="mt-2 w-full py-2 text-sm text-primary border border-primary/30 rounded-lg hover:bg-primary/10"
@@ -305,12 +308,10 @@ export default function StatsTab() {
                   }}
                   className="w-full bg-black/30 border border-border rounded px-2 py-1.5 text-xs"
                 >
-                  <option value="">-- Select a strategy --</option>
-                  {useTradingStore.getState().portfolios.length === 0 && (
-                    strategies.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))
-                  )}
+<option value="">-- Select a strategy --</option>
+                  {strategies.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
                 </select>
               )}
             </div>
@@ -366,7 +367,7 @@ export default function StatsTab() {
               </thead>
               <tbody>
                 {tradesList.map((t) => (
-                  <>
+                  <Fragment key={t.id}>
                     <tr
                       key={t.id}
                       onClick={() => setExpandedTrade(expandedTrade === t.id ? null : t.id)}
@@ -416,7 +417,7 @@ export default function StatsTab() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 ))}
               </tbody>
             </table>

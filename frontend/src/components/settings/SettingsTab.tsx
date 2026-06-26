@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Key, DollarSign, Shield, Brain, Database, Sun, Moon, RefreshCw } from 'lucide-react';
-import { costsApi, learningApi } from '@/lib/api';
+import { Key, DollarSign, Shield, Brain, Database, Sun, Moon } from 'lucide-react';
+import { costsApi, learningApi, tradingApi } from '@/lib/api';
 import { useCostsStore } from '@/stores/costsStore';
 import { useModelGraphStore } from '@/stores/modelGraphStore';
+import { useTradingStore } from '@/stores/tradingStore';
 import toast from 'react-hot-toast';
 
 export default function SettingsTab() {
@@ -11,13 +12,37 @@ export default function SettingsTab() {
   const [binanceSecret, setBinanceSecret] = useState('');
   const [dailyBudget, setDailyBudget] = useState('');
   const [budgetModel, setBudgetModel] = useState('gpt-4o');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+  });
   const { budgets, setBudgets } = useCostsStore();
   const { selectedStrategyId } = useModelGraphStore();
+  const { selectedPortfolioId } = useTradingStore();
+  const [maxPositionSizePct, setMaxPositionSizePct] = useState('10');
+  const [stopLossPct, setStopLossPct] = useState('5');
+  const [takeProfitPct, setTakeProfitPct] = useState('10');
+  const [maxDrawdownPct, setMaxDrawdownPct] = useState('20');
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [improverAggressiveness, setImproverAggressiveness] = useState('moderate');
   const [autoApply, setAutoApply] = useState(false);
   const [improverRunning, setImproverRunning] = useState(false);
+
+  const setThemeAndSync = (t: 'dark' | 'light') => {
+    setTheme(t);
+    localStorage.setItem('theme', t);
+    document.documentElement.classList.toggle('light', t === 'light');
+  };
+
+  useEffect(() => {
+    const id = selectedPortfolioId;
+    if (!id) return;
+    tradingApi.getRiskConfig(id).then((r: any) => {
+      if (r.max_position_size_pct !== undefined) setMaxPositionSizePct(String(r.max_position_size_pct));
+      if (r.stop_loss_pct !== undefined) setStopLossPct(String(r.stop_loss_pct));
+      if (r.take_profit_pct !== undefined) setTakeProfitPct(String(r.take_profit_pct));
+      if (r.max_drawdown_pct !== undefined) setMaxDrawdownPct(String(r.max_drawdown_pct));
+    }).catch(() => {});
+  }, [selectedPortfolioId]);
 
   useEffect(() => {
     costsApi.getBudgets().then((r: any) => setBudgets(r)).catch(() => {});
@@ -60,9 +85,9 @@ export default function SettingsTab() {
               className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <button className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium">
-            Save API Keys
-          </button>
+          <div className="text-[10px] text-muted-foreground">
+            API keys are configured via <code className="text-primary/70">.env</code> on the server.
+          </div>
         </div>
       ),
     },
@@ -98,7 +123,8 @@ export default function SettingsTab() {
               if (val > 0 && budgetModel) {
                 costsApi.setBudget(budgetModel, val).then(() => {
                   costsApi.getBudgets().then((r: any) => setBudgets(r)).catch(() => {});
-                }).catch(() => {});
+                  toast.success(`Budget set for ${budgetModel}`);
+                }).catch(() => toast.error('Failed to set budget'));
               }
             }}
             className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium"
@@ -130,21 +156,37 @@ export default function SettingsTab() {
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Max Position Size (% of portfolio)</label>
-            <input type="number" defaultValue="10" className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <input type="number" value={maxPositionSizePct} onChange={(e) => setMaxPositionSizePct(e.target.value)} className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Stop Loss (%)</label>
-            <input type="number" defaultValue="5" className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <input type="number" value={stopLossPct} onChange={(e) => setStopLossPct(e.target.value)} className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Take Profit (%)</label>
-            <input type="number" defaultValue="10" className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <input type="number" value={takeProfitPct} onChange={(e) => setTakeProfitPct(e.target.value)} className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Max Drawdown Circuit Breaker (%)</label>
-            <input type="number" defaultValue="20" className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+            <input type="number" value={maxDrawdownPct} onChange={(e) => setMaxDrawdownPct(e.target.value)} className="w-full bg-black/30 border border-border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
-          <button className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium">Save Risk Settings</button>
+          <button
+            onClick={async () => {
+              if (!selectedPortfolioId) { toast.error('Select a portfolio first'); return; }
+              try {
+                await tradingApi.updateRiskConfig(selectedPortfolioId, {
+                  max_position_size_pct: parseFloat(maxPositionSizePct),
+                  stop_loss_pct: parseFloat(stopLossPct),
+                  take_profit_pct: parseFloat(takeProfitPct),
+                  max_drawdown_pct: parseFloat(maxDrawdownPct),
+                });
+                toast.success('Risk settings saved');
+              } catch { toast.error('Failed to save risk settings'); }
+            }}
+            className="w-full py-2 bg-primary text-primary-foreground rounded text-sm font-medium"
+          >
+            Save Risk Settings
+          </button>
         </div>
       ),
     },
@@ -239,7 +281,7 @@ export default function SettingsTab() {
         <div className="space-y-3">
           <div className="flex gap-2">
             <button
-              onClick={() => setTheme('dark')}
+              onClick={() => setThemeAndSync('dark')}
               className={`flex-1 py-3 rounded-lg border text-sm font-medium transition-colors ${
                 theme === 'dark' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent'
               }`}
@@ -248,7 +290,7 @@ export default function SettingsTab() {
               Dark
             </button>
             <button
-              onClick={() => setTheme('light')}
+              onClick={() => setThemeAndSync('light')}
               className={`flex-1 py-3 rounded-lg border text-sm font-medium transition-colors ${
                 theme === 'light' ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent'
               }`}

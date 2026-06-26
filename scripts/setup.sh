@@ -20,7 +20,8 @@ apt-get install -y -qq \
   python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev \
   postgresql postgresql-client redis-server \
   nginx certbot python3-certbot-nginx \
-  curl git build-essential 2>&1 | tail -3
+  nodejs npm \
+  curl git build-essential
 
 # Create app user/directories
 echo ">>> Creating app directories..."

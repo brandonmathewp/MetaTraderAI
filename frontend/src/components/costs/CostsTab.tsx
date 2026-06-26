@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   DollarSign, TrendingUp, BarChart3, AlertTriangle,
-  Zap, Clock, Trash2, Plus, RefreshCw, ChevronDown, ChevronUp,
+  Zap, Clock, Trash2, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { costsApi } from '@/lib/api';
 import { useCostsStore } from '@/stores/costsStore';
@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 export default function CostsTab() {
   const {
     todayCosts, overallCost, overallCalls,
-    strategyCosts, predictiveCost, predictive7d, predictive30d,
+    strategyCosts, predictive7d, predictive30d,
     budgets, costHistory, recentUpdates, lastUpdate,
     modelRates,
     setTodayCosts, setStrategyCosts, setPredictiveCost, setPredictives,
@@ -54,12 +54,16 @@ export default function CostsTab() {
     if (!newBudgetModel || !newBudgetAmount) return;
     const amt = parseFloat(newBudgetAmount);
     if (isNaN(amt) || amt <= 0) { toast.error('Invalid amount'); return; }
-    await costsApi.setBudget(newBudgetModel, amt).catch(() => toast.error('Failed to set budget'));
-    setShowAddBudget(false);
-    setNewBudgetModel('');
-    setNewBudgetAmount('5.00');
-    fetchData();
-    toast.success(`Budget set for ${newBudgetModel}: $${amt}/day`);
+    try {
+      await costsApi.setBudget(newBudgetModel, amt);
+      setShowAddBudget(false);
+      setNewBudgetModel('');
+      setNewBudgetAmount('5.00');
+      fetchData();
+      toast.success(`Budget set for ${newBudgetModel}: $${amt}/day`);
+    } catch {
+      toast.error('Failed to set budget');
+    }
   };
 
   const handleDeleteBudget = async (id: number) => {
@@ -284,8 +288,8 @@ export default function CostsTab() {
           {strategyCosts.length === 0 ? (
             <div className="p-3 text-xs text-muted-foreground text-center">No strategy costs</div>
           ) : (
-            strategyCosts.map((s) => (
-              <div key={s.strategy_id || 'none'}>
+            strategyCosts.map((s, i) => (
+              <div key={`${s.strategy_id ?? ''}-${s.strategy_name}-${i}`}>
                 <button
                   onClick={() => handleStrategyExpand(s.strategy_id)}
                   className="w-full flex justify-between items-center p-2.5 border-b border-border/50 hover:bg-accent/30 transition-colors"
@@ -352,7 +356,7 @@ export default function CostsTab() {
             <div className="text-[10px] text-muted-foreground">30-day avg</div>
           </div>
         </div>
-        {totalBudget > 0 && predictive7d > totalBudget * 30 && (
+        {totalBudget > 0 && predictive7d > totalBudget && (
           <div className="flex items-center gap-1 mt-2 text-xs text-red-400 bg-red-400/10 rounded-lg px-3 py-2">
             <AlertTriangle className="h-3 w-3" />
             Projected cost exceeds monthly budget

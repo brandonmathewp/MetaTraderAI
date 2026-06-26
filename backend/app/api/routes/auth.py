@@ -47,8 +47,9 @@ async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
 async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == req.email))
     user = result.scalar_one_or_none()
+    password_valid = verify_password(req.password, user.password_hash) if user else False
 
-    if not user or not verify_password(req.password, user.password_hash):
+    if not user or not password_valid:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if not user.is_active:

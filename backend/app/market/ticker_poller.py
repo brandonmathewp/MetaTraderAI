@@ -2,8 +2,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from app.market.binance_client import BinanceClient, kline_to_dict
-from app.market.websocket import get_binance_ws
+from app.market.binance_client import BinanceClient
 
 logger = logging.getLogger(__name__)
 

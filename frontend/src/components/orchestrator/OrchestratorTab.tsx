@@ -12,7 +12,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
-  Play, Square, Plus, Trash2, Copy, RefreshCw, Settings2,
+  Play, Square, Plus, Trash2, Copy, RefreshCw,
   Zap, X,
 } from 'lucide-react';
 import { strategiesApi, tradingApi } from '@/lib/api';
@@ -40,14 +40,14 @@ export default function OrchestratorTab() {
   const {
     strategies, selectedStrategyId, isExecuting,
     executingNodes, setStrategies, setSelectedStrategy,
-    setIsExecuting, addExecutingNode, removeExecutingNode,
+    setIsExecuting,
   } = useModelGraphStore();
-  const [strategyName, setStrategyName] = useState('New Strategy');
+  const [_strategyName, setStrategyName] = useState('New Strategy');
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [nodeConfig, setNodeConfig] = useState<Record<string, any>>({});
   const [portfolioId, setPortfolioId] = useState<number | null>(null);
   const [portfolios, setPortfolios] = useState<{ id: number; name: string }[]>([]);
-  const [intervalSec, setIntervalSec] = useState(300);
+  const [intervalSec, _setIntervalSec] = useState(300);
   const [runningStatus, setRunningStatus] = useState<any>(null);
   const [lastResult, setLastResult] = useState<any>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
@@ -91,7 +91,6 @@ export default function OrchestratorTab() {
 
   const onNodeClick = useCallback((_event: any, node: Node) => {
     setSelectedNode(node);
-    const configJson = node.data?.configJson;
     const rawConfig: any = node.data?.configJson;
     try { setNodeConfig(rawConfig ? JSON.parse(rawConfig) : {} as Record<string, any>); } catch { setNodeConfig({}); }
   }, []);
@@ -100,18 +99,22 @@ export default function OrchestratorTab() {
     if (!selectedNode || !selectedStrategyId) return;
     const cfgJson = JSON.stringify(nodeConfig);
     const d = selectedNode.data as any;
-    await strategiesApi.updateNode(selectedStrategyId, parseInt(selectedNode.id), {
-      node_type: d.nodeType,
-      label: d.label,
-      node_config_json: cfgJson,
-      position_x: selectedNode.position.x,
-      position_y: selectedNode.position.y,
-    });
-    setNodes((nds) => nds.map((n) =>
-      n.id === selectedNode.id ? { ...n, data: { ...n.data, configJson: cfgJson } } : n
-    ));
-    setSelectedNode(null);
-    toast.success('Node config saved');
+    try {
+      await strategiesApi.updateNode(selectedStrategyId, parseInt(selectedNode.id), {
+        node_type: d.nodeType,
+        label: d.label,
+        node_config_json: cfgJson,
+        position_x: selectedNode.position.x,
+        position_y: selectedNode.position.y,
+      });
+      setNodes((nds) => nds.map((n) =>
+        n.id === selectedNode.id ? { ...n, data: { ...n.data, configJson: cfgJson } } : n
+      ));
+      setSelectedNode(null);
+      toast.success('Node config saved');
+    } catch {
+      toast.error('Failed to save node config');
+    }
   };
 
   const onConnect = useCallback((connection: Connection) => {
@@ -143,30 +146,42 @@ export default function OrchestratorTab() {
         position: { x: pos.x, y: pos.y },
         data: { label: res.label, nodeType: type, configJson: null },
       }]);
-    }).catch(() => {});
+    }).catch(() => toast.error('Failed to create node'));
   }, [reactFlowInstance, selectedStrategyId, setNodes]);
 
   const createStrategy = async () => {
     const name = prompt('Strategy name:', 'New Strategy');
     if (!name) return;
-    const res: any = await strategiesApi.create({ name });
-    setSelectedStrategy(res.id);
-    setNodes([]); setEdges([]);
-    strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    try {
+      const res: any = await strategiesApi.create({ name });
+      setSelectedStrategy(res.id);
+      setNodes([]); setEdges([]);
+      strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    } catch {
+      toast.error('Failed to create strategy');
+    }
   };
 
   const deleteStrategy = async () => {
     if (!selectedStrategyId || !confirm('Delete this strategy?')) return;
-    await strategiesApi.delete(selectedStrategyId);
-    setSelectedStrategy(null); setNodes([]); setEdges([]);
-    strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    try {
+      await strategiesApi.delete(selectedStrategyId);
+      setSelectedStrategy(null); setNodes([]); setEdges([]);
+      strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    } catch {
+      toast.error('Failed to delete strategy');
+    }
   };
 
   const cloneStrategy = async () => {
     if (!selectedStrategyId) return;
-    const res: any = await strategiesApi.clone(selectedStrategyId);
-    toast.success(`Cloned as "${res.name}"`);
-    strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    try {
+      const res: any = await strategiesApi.clone(selectedStrategyId);
+      toast.success(`Cloned as "${res.name}"`);
+      strategiesApi.list().then((r: any) => setStrategies(r)).catch(() => {});
+    } catch {
+      toast.error('Failed to clone strategy');
+    }
   };
 
   const executeOnce = async () => {

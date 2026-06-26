@@ -169,5 +169,4 @@ async def revert_mutation(
     if not mutation:
         raise HTTPException(status_code=404, detail="Mutation not found")
     mutation.applied = False
-    await db.commit()
     return {"message": "Mutation reverted", "mutation_id": mutation_id}

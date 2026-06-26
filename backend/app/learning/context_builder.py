@@ -3,7 +3,6 @@ import logging
 from typing import Optional
 
 from app.learning.trade_memory import trade_memory
-from app.learning.cost_tracker import cost_tracker
 
 logger = logging.getLogger(__name__)
 

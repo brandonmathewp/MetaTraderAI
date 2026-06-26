@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, Star, ArrowUpCircle, ArrowDownCircle, Percent } from 'lucide-react';
+import { Search, ArrowUpCircle, ArrowDownCircle, Percent } from 'lucide-react';
 import { marketApi, tradingApi } from '@/lib/api';
 import { useMarketStore } from '@/stores/marketStore';
 import { useTradingStore } from '@/stores/tradingStore';
@@ -15,12 +15,11 @@ export default function MarketTab() {
   const [orderBook, setOrderBook] = useState<{ bids: number[][]; asks: number[][] } | null>(null);
   const [quantity, setQuantity] = useState('');
   const [tradeLoading, setTradeLoading] = useState(false);
-  const [tradeSide, setTradeSide] = useState<'BUY' | 'SELL'>('BUY');
   const [quantityPct, setQuantityPct] = useState(100);
 
   useEffect(() => {
     marketApi.getSymbols().then((res) => {
-      setAllSymbols(res.symbols.map((s) => s.symbol));
+      setAllSymbols((res?.symbols ?? []).map((s: any) => s.symbol));
     }).catch(() => {});
 
     tradingApi.getPortfolios().then((res: any) => setPortfolios(res)).catch(() => {});
@@ -59,7 +58,8 @@ export default function MarketTab() {
       const pos = p.find((x: any) => x.symbol === selectedSymbol);
       if (pos && pos.quantity > 0) {
         setQuantity(pos.quantity.toFixed(4));
-        setTradeSide('SELL');
+      } else {
+        setQuantity('');
       }
     }).catch(() => {});
   }, [selectedSymbol, selectedPortfolioId]);

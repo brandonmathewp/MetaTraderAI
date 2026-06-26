@@ -38,15 +38,14 @@ export default function EditorTab() {
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    scriptsApi.getTemplates().then((r: any) => setTemplates(r)).catch(() => {});
-    tradingApi.getPortfolios().then((r: any) => setPortfolios(r)).catch(() => {});
-    // Default: load first template
     scriptsApi.getTemplates().then((r: any) => {
+      setTemplates(r);
       if (r?.length > 0) {
         setCode(r[0].code);
         setScriptName(r[0].name);
       }
     }).catch(() => {});
+    tradingApi.getPortfolios().then((r: any) => setPortfolios(r)).catch(() => {});
   }, []);
 
   useEffect(() => {

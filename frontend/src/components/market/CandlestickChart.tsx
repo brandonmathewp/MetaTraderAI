@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+
+import { useEffect, useRef } from 'react';
 import { createChart, type IChartApi, type ISeriesApi } from 'lightweight-charts';
 
 interface CandlestickChartProps {
@@ -10,7 +11,6 @@ export function CandlestickChart({ data, containerClassName }: CandlestickChartP
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const [sized, setSized] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -39,7 +39,6 @@ export function CandlestickChart({ data, containerClassName }: CandlestickChartP
     });
     chartRef.current = chart;
     seriesRef.current = series;
-    setSized(true);
 
     const handleResize = () => {
       chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 300 });

@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import sys
+import textwrap
 import time
 from contextlib import redirect_stdout, redirect_stderr
 from datetime import datetime, timezone
@@ -307,11 +308,12 @@ class ScriptSandbox:
         stderr_buf = io.StringIO()
 
         # Build the full script wrapper
+        indented_code = textwrap.indent(code, '    ')
         wrapped_code = f"""
 import asyncio
 
 async def __sandbox_run():
-{chr(10).join('    ' + line for line in code.split(chr(10)))}
+{indented_code}
 
 try:
     result = asyncio.get_event_loop().run_until_complete(__sandbox_run())

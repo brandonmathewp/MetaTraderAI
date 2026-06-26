@@ -5,7 +5,6 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.market.binance_client import BinanceClient
 from app.market.indicators import get_indicators
-from app.models.models import User, Portfolio
 
 router = APIRouter(prefix="/api/market", tags=["market"])
 

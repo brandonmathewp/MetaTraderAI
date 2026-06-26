@@ -100,7 +100,7 @@ class TradeMemory:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-            self.collection.add(
+            self.collection.upsert(
                 ids=[doc_id],
                 documents=[text],
                 metadatas=[metadata],

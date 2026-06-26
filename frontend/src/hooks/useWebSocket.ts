@@ -1,11 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useMarketStore } from '@/stores/marketStore';
 import { useCostsStore } from '@/stores/costsStore';
-import { useTradingStore } from '@/stores/tradingStore';
-import { useModelGraphStore } from '@/stores/modelGraphStore';
+
+const INITIAL_RECONNECT_DELAY = 1000;
+const MAX_RECONNECT_DELAY = 30000;
 
 export function useWebSocket(userId: number | null) {
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectDelay = useRef(INITIAL_RECONNECT_DELAY);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -40,12 +43,10 @@ export function useWebSocket(userId: number | null) {
         case 'pong':
           break;
       }
-    } catch {}
+    } catch { /* ignore parse errors */ }
   }, []);
 
-  useEffect(() => {
-    if (!userId) return;
-
+  const connect = useCallback(() => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
@@ -54,6 +55,7 @@ export function useWebSocket(userId: number | null) {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      reconnectDelay.current = INITIAL_RECONNECT_DELAY;
       ws.send(JSON.stringify({ type: 'subscribe_ticker', symbol: 'BTCUSDT' }));
       ws.send(JSON.stringify({ type: 'subscribe_ticker', symbol: 'ETHUSDT' }));
       ws.send(JSON.stringify({ type: 'subscribe_ticker', symbol: 'SOLUSDT' }));
@@ -61,17 +63,37 @@ export function useWebSocket(userId: number | null) {
 
     ws.onmessage = handleMessage;
 
+    ws.onerror = () => {
+      // onclose will fire after onerror, handling reconnection there
+    };
+
+    ws.onclose = (event) => {
+      if (!event.wasClean) {
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = setTimeout(() => {
+          connect();
+        }, reconnectDelay.current);
+        reconnectDelay.current = Math.min(reconnectDelay.current * 2, MAX_RECONNECT_DELAY);
+      }
+    };
+  }, [userId, handleMessage]);
+
+  useEffect(() => {
+    if (!userId) return;
+    connect();
+
     const pingInterval = setInterval(() => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ping' }));
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'ping' }));
       }
     }, 30000);
 
     return () => {
       clearInterval(pingInterval);
-      ws.close();
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
     };
-  }, [userId, handleMessage]);
+  }, [userId, connect]);
 
   return wsRef;
 }

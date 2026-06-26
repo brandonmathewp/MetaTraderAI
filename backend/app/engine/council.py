@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from app.core.openrouter import get_openrouter
-from app.engine.node_types import NodeType, NodeStatus, GraphNodeData, NodeResult, ExecutionContext
+from app.engine.node_types import NodeStatus, GraphNodeData, NodeResult, ExecutionContext
 
 logger = logging.getLogger(__name__)
 

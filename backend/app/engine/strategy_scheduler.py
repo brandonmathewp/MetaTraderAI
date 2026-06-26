@@ -15,9 +15,13 @@ from app.engine.council import CouncilRunner
 from app.market.binance_client import BinanceClient
 from app.market.indicators import get_indicators
 from app.core.openrouter import get_openrouter
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import async_session_factory
+from app.models.models import Portfolio as DbPortfolio
 from app.trading.paper_broker import PaperBroker
-from app.trading.order_manager import OrderSide
+from app.trading.order_manager import OrderSide, OrderStatus
 from app.trading.portfolio import Portfolio as PortfolioLib
 from app.learning.context_builder import context_builder as rag_builder
 from app.learning.trade_memory import trade_memory
@@ -54,6 +58,9 @@ class StrategyScheduler:
         self._executor.register_handler(NodeType.MERGE, self._handle_merge)
         self._executor.register_handler(NodeType.ACTION, self._handle_action)
         self._executor.register_handler(NodeType.SCRIPT, self._handle_script)
+
+    def set_executor_on_event(self, callback):
+        self._executor.on_event(callback)
 
     async def _handle_trigger(self, node: GraphNodeData, inp: dict, ctx: ExecutionContext) -> NodeResult:
         return NodeResult(
@@ -210,7 +217,7 @@ class StrategyScheduler:
 
         if action in ("BUY", "SELL") and confidence >= threshold and ctx.portfolio_id:
             async with async_session_factory() as db:
-                result = await db.execute(select(Portfolio).where(Portfolio.id == ctx.portfolio_id))
+                result = await db.execute(select(DbPortfolio).where(DbPortfolio.id == ctx.portfolio_id))
                 db_p = result.scalar_one_or_none()
 
                 if db_p:
@@ -223,7 +230,15 @@ class StrategyScheduler:
                     )
 
                     symbol = node.symbol or "BTCUSDT"
-                    size = port.risk_manager.compute_position_size(port.equity, 0) or 0.001
+                    client = BinanceClient()
+                    try:
+                        ticker_data = await client.get_ticker(symbol)
+                        current_price = float(ticker_data.get("price", 0))
+                    except Exception:
+                        current_price = 0
+                    finally:
+                        await client.close()
+                    size = port.risk_manager.compute_position_size(port.equity, current_price) or 0.001
                     side = OrderSide.BUY if action == "BUY" else OrderSide.SELL
                     broker = PaperBroker()
                     order = await broker.execute_market_order(

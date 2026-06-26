@@ -44,9 +44,11 @@ class Portfolio:
     def open_positions_count(self) -> int:
         return sum(1 for p in self.positions.values() if abs(p.quantity) > 0)
 
+    def _tick_peak(self):
+        self.peak_equity = max(self.peak_equity, self.equity)
+
     @property
     def current_drawdown_pct(self) -> float:
-        self.peak_equity = max(self.peak_equity, self.equity)
         if self.peak_equity <= 0:
             return 0.0
         return ((self.peak_equity - self.equity) / self.peak_equity) * 100
@@ -96,7 +98,7 @@ class Portfolio:
         position = self.get_or_create_position(symbol)
         position.add(quantity, price)
 
-        self.peak_equity = max(self.peak_equity, self.equity)
+        self._tick_peak()
 
         return {
             "symbol": symbol,
@@ -158,6 +160,7 @@ class Portfolio:
         return triggers
 
     def to_summary(self) -> dict:
+        self._tick_peak()
         return {
             "id": self.id,
             "name": self.name,

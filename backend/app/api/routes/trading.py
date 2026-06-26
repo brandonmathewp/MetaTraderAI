@@ -12,7 +12,7 @@ from app.core.security import get_current_user
 from app.models.models import User, Portfolio as DbPortfolio, Position as DbPosition, Trade
 from app.trading.paper_broker import PaperBroker
 from app.trading.portfolio import Portfolio
-from app.trading.order_manager import OrderSide, OrderType, OrderStatus
+from app.trading.order_manager import OrderSide, OrderType, OrderStatus, Position as OrderPosition
 from app.trading.risk_manager import RiskManager
 from app.market.binance_client import BinanceClient
 from app.learning.trade_memory import trade_memory
@@ -42,7 +42,7 @@ def _db_to_portfolio(p: DbPortfolio, positions: list[dict] | None = None) -> Por
     if positions:
         for pos in positions:
             if pos["quantity"] != 0:
-                portfolio.positions[pos["symbol"]] = app.trading.order_manager.Position(
+                portfolio.positions[pos["symbol"]] = OrderPosition(
                     symbol=pos["symbol"],
                     quantity=pos["quantity"],
                     avg_entry=pos["avg_entry"],

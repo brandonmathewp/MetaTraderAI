@@ -1,6 +1,6 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import {
-  TrendingUp, BarChart3, Code2, PieChart, DollarSign, Settings, Monitor, Moon,
+  TrendingUp, BarChart3, Code2, PieChart, DollarSign, Settings, Sun, Moon,
 } from 'lucide-react';
 import { useAuthStore } from '@/stores/authStore';
 import { authApi } from '@/lib/api';
@@ -68,7 +68,7 @@ export default function App() {
       setTab(t.id);
       return;
     }
-    if (e.key === 'd' && e.metaKey) { e.preventDefault(); setTheme((t) => t === 'dark' ? 'light' : 'dark'); }
+    if (e.key === 'd' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setTheme((t) => t === 'dark' ? 'light' : 'dark'); }
   }, []);
 
   useEffect(() => {
@@ -105,9 +105,9 @@ export default function App() {
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             {theme === 'dark' ? (
-              <Monitor className="h-4 w-4 text-muted-foreground" />
-            ) : (
               <Moon className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <Sun className="h-4 w-4 text-muted-foreground" />
             )}
           </button>
           <button
