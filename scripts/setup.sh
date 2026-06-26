@@ -372,7 +372,7 @@ build_frontend() {
 run_migrations() {
     info "Running database migrations..."
     cd "$BACKEND_DIR"
-    "$VENV_DIR/bin/alembic" upgrade head
+    PYTHONPATH="$BACKEND_DIR" "$VENV_DIR/bin/alembic" upgrade head
     ok "Migrations applied"
 }
 
@@ -424,6 +424,7 @@ cmd_install() {
     echo -e "${GREEN}╚══════════════════════════════════╝${NC}"
 
     detect_domain
+    write_manifest
 
     # ── Phase 1: System preparation ──
     echo ""; info "PHASE 1: System preparation"
