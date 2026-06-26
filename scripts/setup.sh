@@ -4,9 +4,9 @@ set -euo pipefail
 # MetaTrader — Full Lifecycle Management Script
 #
 # Usage:
-#   sudo ./setup.sh install [domain] [git-url]   Full first-boot setup (fresh Ubuntu 24.04 VPS)
+#   sudo ./setup.sh install [domain]           Full first-boot setup (fresh Ubuntu 24.04 VPS)
 #   sudo ./setup.sh uninstall                    Reverse everything this script created
-#   sudo ./setup.sh reinstall [domain] [git-url] uninstall + install
+#   sudo ./setup.sh reinstall [domain]           uninstall + install
 #   sudo ./setup.sh update                       git pull + rebuild + restart
 #   sudo ./setup.sh upgrade                      update + alembic upgrade head
 #   sudo ./setup.sh start                        Start all services
@@ -22,6 +22,7 @@ BACKEND_DIR="$APP_DIR/backend"
 VENV_DIR="$BACKEND_DIR/venv"
 MANIFEST_FILE="$APP_DIR/.setup-manifest"
 PACKAGES_FILE="$APP_DIR/.setup-packages"
+DEFAULT_GIT_URL="https://github.com/brandonmathewp/MetaTraderAI.git"
 REQUIRED_PYTHON="3.12"
 REQUIRED_PYTHON_MIN="$REQUIRED_PYTHON.0"
 PYTHON_BIN="python${REQUIRED_PYTHON}"
@@ -38,7 +39,7 @@ info()  { echo -e "${CYAN}>>>${NC} $*"; }
 ok()    { echo -e "${GREEN}✓${NC} $*"; }
 warn()  { echo -e "${YELLOW}⚠${NC} $*"; }
 err()   { echo -e "${RED}✗${NC} $*" >&2; }
-die()   { err "$@"; exit 1; }
+die()   { for msg in "$@"; do err "$msg"; done; exit 1; }
 
 must_be_root() { [ "$(id -u)" -eq 0 ] || die "This script must be run as root (use sudo)."; }
 
@@ -387,50 +388,23 @@ set_permissions() {
 # ═════════════════════════════════════════════════════════════════════════════
 
 ensure_repo() {
-    local GIT_URL="${1:-}"
+    local GIT_URL="${1:-$DEFAULT_GIT_URL}"
 
-    # ── Path already exists ──
     if [ -d "$APP_DIR" ]; then
         if [ -d "$APP_DIR/.git" ]; then
-            exec 3<&0
-            exec 0</dev/tty 2>/dev/null || true
-            echo ""; warn "$APP_DIR already exists (git repository detected)."
-            echo "  [a] Abort    — exit without changes (press Enter)"
-            echo "  [u] Update   — git pull + rebuild + restart"
-            echo "  [f] Force    — uninstall everything then reinstall fresh"
-            echo ""
-            read -rp "Choice [a/u/f]: " choice
-            case "${choice:-a}" in
-                u|U) exec 0<&3 2>/dev/null; exec 3<&-; cmd_update; exit 0 ;;
-                f|F) exec 0<&3 2>/dev/null; exec 3<&-; cmd_uninstall "$@" <<< "CONFIRM" ;;
-                *)   exec 0<&3 2>/dev/null; exec 3<&-; die "Aborted." ;;
-            esac
+            die \
+                "$APP_DIR already exists (git repository detected)." \
+                "To refresh:  sudo ./setup.sh update" \
+                "To remove:   sudo ./setup.sh uninstall"
         else
             die "$APP_DIR exists but is not a git repository. Remove it manually and try again."
         fi
     fi
 
-    # ── Clone if URL provided ──
-    if [ -n "$GIT_URL" ]; then
-        info "Cloning $GIT_URL → $APP_DIR..."
-        git clone "$GIT_URL" "$APP_DIR"
-        ok "Repository cloned"
-    elif git rev-parse --show-toplevel &>/dev/null 2>&1; then
-        # We're running from inside a git repo — copy it
-        local repo_root; repo_root=$(git rev-parse --show-toplevel)
-        info "Copying repository from $repo_root → $APP_DIR..."
-        mkdir -p "$APP_DIR"
-        rsync -a "$repo_root/" "$APP_DIR/" --exclude='.git' --exclude='node_modules' --exclude='venv' --exclude='__pycache__' --exclude='*.pyc' --exclude='dist' --exclude='chroma_data'
-        git -C "$repo_root" rev-parse HEAD > "$APP_DIR/.git-commit"
-        ok "Repository copied (commit $(cat "$APP_DIR/.git-commit"))"
-    else
-        die "No git URL provided and not running from a repository."
-        echo "Usage: sudo ./setup.sh install <domain> <git-url>"
-        echo "Example: sudo ./setup.sh install my-domain.com https://github.com/user/metatrader.git"
-        exit 1
-    fi
+    info "Cloning $GIT_URL → $APP_DIR..."
+    git clone "$GIT_URL" "$APP_DIR"
+    ok "Repository cloned"
 
-    # ── Validate the cloned repo looks correct ──
     if [ ! -f "$BACKEND_DIR/requirements.txt" ] || [ ! -f "$APP_DIR/frontend/package.json" ]; then
         warn "Cloned repository does not appear to be MetaTrader (missing backend/requirements.txt or frontend/package.json)."
         rm -rf "$APP_DIR"
@@ -440,11 +414,10 @@ ensure_repo() {
 
 cmd_install() {
     DOMAIN="${1:-}"
-    GIT_URL="${2:-}"
     [ "$DOMAIN" = "--" ] && DOMAIN=""
     must_be_root
 
-    ensure_repo "$GIT_URL"
+    ensure_repo "$DEFAULT_GIT_URL"
 
     echo -e "${GREEN}╔══════════════════════════════════╗${NC}"
     echo -e "${GREEN}║   MetaTrader VPS Installer       ║${NC}"
@@ -525,10 +498,7 @@ cmd_uninstall() {
     warn "This will DELETE all MetaTrader data including the database."
     warn "Packages that were already installed before this script will be kept."
     echo ""
-    exec 3<&0
-    exec 0</dev/tty 2>/dev/null || true
     read -rp "Type CONFIRM to proceed: " confirm
-    exec 0<&3 2>/dev/null; exec 3<&-
     [ "$confirm" = "CONFIRM" ] || die "Aborted."
 
     teardown_systemd
@@ -595,9 +565,8 @@ cmd_restart() { must_be_root; require_manifest; systemctl restart $SERVICES; ok 
 
 cmd_reinstall() {
     DOMAIN="${1:-}"
-    GIT_URL="${2:-}"
     [ "$DOMAIN" = "--" ] && DOMAIN=""
-    cmd_install "$DOMAIN" "$GIT_URL"
+    cmd_install "$DOMAIN"
 }
 
 cmd_status() {
@@ -648,9 +617,9 @@ cmd_help() {
     echo "Usage: sudo ./setup.sh <command> [args]"
     echo ""
     echo "Commands:"
-    echo "  install [domain] [git-url]  Full first-boot setup (fresh Ubuntu 24.04 VPS)"
+    echo "  install [domain]          Full first-boot setup (fresh Ubuntu 24.04 VPS)"
     echo "  uninstall                  Reverse everything this script created"
-    echo "  reinstall [domain] [git-url] Uninstall + install fresh"
+    echo "  reinstall [domain]         Uninstall + install fresh"
     echo "  update                     Git pull + rebuild + restart"
     echo "  upgrade                    Update + run DB migrations"
     echo "  start                      Start metatrader-api and metatrader-worker"
@@ -661,9 +630,8 @@ cmd_help() {
     echo "  help                       Show this message"
     echo ""
     echo "Examples:"
-    echo "  sudo ./setup.sh install                                    # auto-detect IP, clone from cwd"
-    echo "  sudo ./setup.sh install my-domain.com                      # with domain, clone from cwd"
-    echo "  sudo ./setup.sh install my-domain.com https://github.com/.. # full URL"
+    echo "  sudo ./setup.sh install                          # auto-detect IP"
+    echo "  sudo ./setup.sh install my-domain.com            # with domain"
     echo ""
     echo "Python requirement: $REQUIRED_PYTHON.x (auto-installed if missing)"
     echo "First install auto-detects public IPv4 if no domain provided."

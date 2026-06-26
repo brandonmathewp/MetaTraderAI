@@ -113,33 +113,35 @@ The frontend dev server proxies `/api` and `/ws` requests to the backend at `127
 
 ## VPS Deployment
 
-One-liner for a fresh Ubuntu 24.04 VPS. The script installs everything — PostgreSQL, Redis, Nginx, Node.js, and Python 3.12 — tracks exactly what it installed, and handles the full application lifecycle.
+One-liner for a fresh Ubuntu 24.04 VPS. The script auto-clones the repo, installs PostgreSQL, Redis, Nginx, Node.js, and Python 3.12 — tracking exactly what it installed for clean uninstall.
 
 ```bash
 # Auto-detect public IPv4:
-curl -o- https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install
+curl -fsSL https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install
 
 # With a domain:
-curl -o- https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install your-domain.com
+curl -fsSL https://raw.githubusercontent.com/brandonmathewp/MetaTraderAI/main/scripts/setup.sh | sudo bash -s -- install your-domain.com
 ```
 
-The install command handles a completely fresh VPS: runs system updates, clones the repository, installs and configures all dependencies, creates the database, builds the frontend, runs migrations, and sets up systemd services (not auto-started — you control when they start).
+The install handles a fresh VPS end-to-end: clones the repository, installs all dependencies, creates the database, builds the frontend, runs migrations, and sets up systemd services (stopped by default — you control startup).
 
-**After install:** `sudo scripts/setup.sh start` from `/opt/metatrader`, then access the app at `http://<your-ip-or-domain>`. The first registered user automatically becomes admin.
+If `/opt/metatrader` already exists, the script exits and tells you to run `update` or `uninstall`.
+
+**After install:** `sudo scripts/setup.sh start` from `/opt/metatrader`, then access `http://<your-ip-or-domain>`. The first registered user automatically becomes admin.
 
 ### Lifecycle Commands
 
 | Command | Description |
 |---------|-------------|
-| `sudo ./setup.sh install [domain]` | Full first-boot setup from scratch |
+| `sudo ./setup.sh install [domain]` | Full first-boot setup |
 | `sudo ./setup.sh start` | Start all services |
 | `sudo ./setup.sh stop` | Stop all services |
 | `sudo ./setup.sh restart` | Restart all services |
-| `sudo ./setup.sh update` | Git pull + rebuild + restart (no DB changes) |
+| `sudo ./setup.sh update` | Git pull + rebuild + restart |
 | `sudo ./setup.sh upgrade` | Update + run DB migrations |
 | `sudo ./setup.sh status` | Health check: services, disk, open ports, logs |
 | `sudo ./setup.sh logs [api\|worker\|nginx]` | Tail live service logs |
-| `sudo ./setup.sh uninstall` | Reverse everything (only removes packages this script installed) |
+| `sudo ./setup.sh uninstall` | Reverse everything (only removes script-installed packages) |
 | `sudo ./setup.sh reinstall [domain]` | Uninstall + fresh install |
 | `sudo ./setup.sh help` | Show usage |
 
